@@ -3,7 +3,7 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { text, ceo_id, elevenlabs_key } = req.body;
+  const { text, ceo_id, elevenlabs_key, voice_id } = req.body;
 
   if (!elevenlabs_key) {
     return res.status(400).json({ error: 'ElevenLabs API key required' });
@@ -25,7 +25,8 @@ module.exports = async function handler(req, res) {
     'jeff-bezos': 'N2lVS1w4EtoT3dr4eOWO',         // Callum
   };
 
-  const voiceId = CEO_VOICES[ceo_id] || 'pNInz6obpgDQGcFmaJgB';
+  // Use custom voice_id if provided, otherwise fall back to defaults
+  const voiceId = voice_id || CEO_VOICES[ceo_id] || 'pNInz6obpgDQGcFmaJgB';
 
   try {
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
