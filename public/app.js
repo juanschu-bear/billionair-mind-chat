@@ -24,6 +24,7 @@
   let apiProvider = localStorage.getItem('bmc_api_provider') || 'anthropic';
   let elevenLabsKey = localStorage.getItem('bmc_elevenlabs_key') || '';
   let isRecording = false;
+  let voiceMode = localStorage.getItem('bmc_voice_mode') === 'true';
 
   // ===== DOM REFS =====
   const $ = (sel) => document.querySelector(sel);
@@ -56,6 +57,7 @@
   const settingsProvider = $('#settingsProvider');
   const settingsElevenLabsKey = $('#settingsElevenLabsKey');
   const micBtn = $('#micBtn');
+  const voiceToggle = $('#voiceToggle');
 
   // ===== USER ID =====
   function generateUserId() {
@@ -98,6 +100,26 @@
     document.documentElement.setAttribute('data-theme', currentTheme);
     updateThemeIcon();
   });
+
+  // ===== VOICE MODE TOGGLE =====
+  function updateVoiceToggle() {
+    if (voiceToggle) {
+      voiceToggle.classList.toggle('active', voiceMode);
+    }
+  }
+  updateVoiceToggle();
+
+  if (voiceToggle) {
+    voiceToggle.addEventListener('click', () => {
+      if (!elevenLabsKey) {
+        showSettings();
+        return;
+      }
+      voiceMode = !voiceMode;
+      localStorage.setItem('bmc_voice_mode', voiceMode);
+      updateVoiceToggle();
+    });
+  }
 
   // ===== CONTACTS LIST =====
   function renderContacts(filter = '') {
@@ -251,6 +273,15 @@
 
   // ===== TTS PLAYBACK =====
   let currentAudio = null;
+  const PLAY_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+  const PAUSE_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
+
+  function resetPlayBtn(btn) {
+    if (btn) {
+      btn.classList.remove('playing');
+      btn.innerHTML = PLAY_ICON;
+    }
+  }
 
   async function playTTS(text, btn) {
     if (!elevenLabsKey || !currentCeo) return;
@@ -259,12 +290,14 @@
     if (currentAudio) {
       currentAudio.pause();
       currentAudio = null;
-      document.querySelectorAll('.voice-play-btn.playing').forEach(b => b.classList.remove('playing'));
+      document.querySelectorAll('.voice-play-btn.playing').forEach(b => resetPlayBtn(b));
       return;
     }
 
-    btn.classList.add('playing');
-    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
+    if (btn) {
+      btn.classList.add('playing');
+      btn.innerHTML = PAUSE_ICON;
+    }
 
     try {
       const res = await fetch(`${API}/tts`, {
@@ -287,19 +320,46 @@
         currentAudio = new Audio(audioUrl);
         currentAudio.onended = () => {
           currentAudio = null;
-          btn.classList.remove('playing');
-          btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+          resetPlayBtn(btn);
           URL.revokeObjectURL(audioUrl);
         };
         currentAudio.play();
       } else {
-        btn.classList.remove('playing');
-        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+        resetPlayBtn(btn);
       }
     } catch (err) {
-      btn.classList.remove('playing');
-      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+      resetPlayBtn(btn);
     }
+  }
+
+  // Auto-play TTS for voice mode (no button needed)
+  async function autoPlayTTS(text) {
+    if (!elevenLabsKey || !currentCeo) return;
+    try {
+      const res = await fetch(`${API}/tts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text,
+          ceo_id: currentCeo.id,
+          elevenlabs_key: elevenLabsKey
+        })
+      });
+      const data = await res.json();
+      if (data.audio) {
+        const audioBlob = new Blob(
+          [Uint8Array.from(atob(data.audio), c => c.charCodeAt(0))],
+          { type: 'audio/mpeg' }
+        );
+        const audioUrl = URL.createObjectURL(audioBlob);
+        currentAudio = new Audio(audioUrl);
+        currentAudio.onended = () => {
+          currentAudio = null;
+          URL.revokeObjectURL(audioUrl);
+        };
+        currentAudio.play();
+      }
+    } catch (err) { /* silent */ }
   }
 
   // ===== SPEECH RECOGNITION (Voice Input) =====
@@ -386,6 +446,9 @@
 
       if (data.response) {
         addMessage('assistant', data.response);
+        if (voiceMode && elevenLabsKey) {
+          autoPlayTTS(data.response);
+        }
       } else if (data.error) {
         addMessage('assistant', '⚠️ ' + data.error);
       } else {
