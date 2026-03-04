@@ -76,6 +76,13 @@
         <img class="chat-header-avatar" id="chatAvatar" src="" alt="">
         <span class="chat-header-name" id="chatName"></span>
       </div>
+      <button class="voice-toggle-btn" id="voiceToggle" aria-label="Toggle voice mode" title="Voice mode">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+          <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+        </svg>
+      </button>
       <button class="clear-chat-btn" id="clearChatBtn" aria-label="Clear conversation" title="Clear conversation">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
@@ -98,6 +105,14 @@
     </div>
 
     <div class="input-bar">
+      <button class="mic-btn" id="micBtn" aria-label="Voice message">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+          <line x1="12" y1="19" x2="12" y2="23"/>
+          <line x1="8" y1="23" x2="16" y2="23"/>
+        </svg>
+      </button>
       <div class="input-wrapper">
         <textarea id="messageInput" rows="1" placeholder="iMessage" enterkeyhint="send"></textarea>
         <button class="send-btn" id="sendBtn" aria-label="Send message">
@@ -125,6 +140,9 @@
         <label class="settings-label">API Key</label>
         <input type="password" id="settingsApiKey" class="settings-input" placeholder="sk-ant-... or sk-..." autocomplete="off" spellcheck="false">
         <p class="settings-hint">Your key stays in browser memory. It's never stored on disk or logged.</p>
+        <label class="settings-label">ElevenLabs API Key (Voice)</label>
+        <input type="password" id="settingsElevenLabsKey" class="settings-input" placeholder="xi-..." autocomplete="off" spellcheck="false">
+        <p class="settings-hint">Optional. Enables voice responses from CEOs with cloned voices.</p>
         <button class="settings-save-btn" id="settingsSave">Save</button>
       </div>
     </div>
