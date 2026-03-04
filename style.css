@@ -802,3 +802,62 @@
   transform: scale(0.97);
   opacity: 0.9;
 }
+
+/* ========== MIC BUTTON ========== */
+.mic-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary);
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+}
+
+.mic-btn:hover {
+  background: var(--color-separator);
+}
+
+.mic-btn.recording {
+  color: #ff3b30;
+  animation: micPulse 1.2s infinite ease-in-out;
+}
+
+@keyframes micPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+
+/* ========== VOICE PLAY BUTTON ========== */
+.voice-play-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  color: inherit;
+  margin-left: 8px;
+  vertical-align: middle;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.message-row.incoming .voice-play-btn {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="dark"] .message-row.incoming .voice-play-btn {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.voice-play-btn:hover {
+  transform: scale(1.1);
+}
+
+.voice-play-btn.playing {
+  animation: micPulse 1.2s infinite ease-in-out;
+}
