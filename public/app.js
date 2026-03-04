@@ -20,8 +20,8 @@
   let currentCeo = null;
   let conversations = {};
   let isLoading = false;
-  let apiKey = '';
-  let apiProvider = 'anthropic'; // or 'openai'
+  let apiKey = localStorage.getItem('bmc_api_key') || '';
+  let apiProvider = localStorage.getItem('bmc_api_provider') || 'anthropic';
 
   // ===== DOM REFS =====
   const $ = (sel) => document.querySelector(sel);
@@ -266,10 +266,12 @@
         addMessage('assistant', data.response);
       } else if (data.error) {
         addMessage('assistant', '⚠️ ' + data.error);
+      } else {
+        addMessage('assistant', '⚠️ Unexpected response (HTTP ' + res.status + ')');
       }
     } catch (err) {
       typingIndicator.classList.remove('active');
-      addMessage('assistant', '⚠️ Connection error. Please try again.');
+      addMessage('assistant', '⚠️ Connection error: ' + err.message);
     }
 
     isLoading = false;
@@ -346,6 +348,8 @@
   settingsSave.addEventListener('click', () => {
     apiKey = settingsApiKey.value.trim();
     apiProvider = settingsProvider.value;
+    localStorage.setItem('bmc_api_key', apiKey);
+    localStorage.setItem('bmc_api_provider', apiProvider);
     hideSettings();
   });
 
@@ -366,6 +370,8 @@
 
     apiKey = key;
     apiProvider = provider;
+    localStorage.setItem('bmc_api_key', apiKey);
+    localStorage.setItem('bmc_api_provider', apiProvider);
 
     onboarding.classList.add('hidden');
     const url = new URL(window.location);
@@ -388,5 +394,13 @@
   // ===== INIT =====
   initUser();
   renderContacts();
+
+  // Skip onboarding if API key is already saved
+  if (apiKey) {
+    onboarding.classList.add('hidden');
+    const url = new URL(window.location);
+    url.searchParams.set('uid', userId);
+    window.history.replaceState({}, '', url);
+  }
 
 })();
