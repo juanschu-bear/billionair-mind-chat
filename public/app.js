@@ -266,10 +266,12 @@
         addMessage('assistant', data.response);
       } else if (data.error) {
         addMessage('assistant', '⚠️ ' + data.error);
+      } else {
+        addMessage('assistant', '⚠️ Unexpected response (HTTP ' + res.status + ')');
       }
     } catch (err) {
       typingIndicator.classList.remove('active');
-      addMessage('assistant', '⚠️ Connection error. Please try again.');
+      addMessage('assistant', '⚠️ Connection error: ' + err.message);
     }
 
     isLoading = false;

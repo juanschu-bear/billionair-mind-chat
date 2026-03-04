@@ -17,44 +17,61 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: 'Unknown CEO' });
   }
 
-  const ceo = CEO_PROFILES[ceo_id];
-  const userHash = crypto.createHash('md5').update(user_id || 'anonymous').digest('hex').slice(0, 12);
-
-  // Load existing conversation from Supabase
-  const { data: row } = await supabase
-    .from('conversations')
-    .select('messages')
-    .eq('user_hash', userHash)
-    .eq('ceo_id', ceo_id)
-    .single();
-
-  let messages = row?.messages || [];
-  messages.push({ role: 'user', content: message });
-
-  // Call AI API
-  let responseText;
-  if (provider === 'openai') {
-    responseText = await callOpenAI(api_key, ceo.system, messages);
-  } else {
-    responseText = await callAnthropic(api_key, ceo.system, messages);
+  // Check Supabase config
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
+    return res.status(500).json({ error: 'Server config error: Supabase environment variables missing.' });
   }
 
-  messages.push({ role: 'assistant', content: responseText });
+  try {
+    const ceo = CEO_PROFILES[ceo_id];
+    const userHash = crypto.createHash('md5').update(user_id || 'anonymous').digest('hex').slice(0, 12);
 
-  // Keep last 30 messages
-  if (messages.length > 30) {
-    messages = messages.slice(-30);
+    // Load existing conversation from Supabase
+    const { data: row, error: loadError } = await supabase
+      .from('conversations')
+      .select('messages')
+      .eq('user_hash', userHash)
+      .eq('ceo_id', ceo_id)
+      .single();
+
+    if (loadError && loadError.code !== 'PGRST116') {
+      return res.status(500).json({ error: `Supabase load error: ${loadError.message}` });
+    }
+
+    let messages = row?.messages || [];
+    messages.push({ role: 'user', content: message });
+
+    // Call AI API
+    let responseText;
+    if (provider === 'openai') {
+      responseText = await callOpenAI(api_key, ceo.system, messages);
+    } else {
+      responseText = await callAnthropic(api_key, ceo.system, messages);
+    }
+
+    messages.push({ role: 'assistant', content: responseText });
+
+    // Keep last 30 messages
+    if (messages.length > 30) {
+      messages = messages.slice(-30);
+    }
+
+    // Upsert conversation to Supabase
+    const { error: saveError } = await supabase
+      .from('conversations')
+      .upsert(
+        { user_hash: userHash, ceo_id: ceo_id, messages, updated_at: new Date().toISOString() },
+        { onConflict: 'user_hash,ceo_id' }
+      );
+
+    if (saveError) {
+      return res.status(500).json({ error: `Supabase save error: ${saveError.message}` });
+    }
+
+    return res.status(200).json({ response: responseText, ceo_name: ceo.name });
+  } catch (err) {
+    return res.status(500).json({ error: `Server error: ${err.message}` });
   }
-
-  // Upsert conversation to Supabase
-  await supabase
-    .from('conversations')
-    .upsert(
-      { user_hash: userHash, ceo_id: ceo_id, messages, updated_at: new Date().toISOString() },
-      { onConflict: 'user_hash,ceo_id' }
-    );
-
-  return res.status(200).json({ response: responseText, ceo_name: ceo.name });
 };
 
 async function callAnthropic(apiKey, systemPrompt, messages) {
