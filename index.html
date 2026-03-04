@@ -76,13 +76,6 @@
         <img class="chat-header-avatar" id="chatAvatar" src="" alt="">
         <span class="chat-header-name" id="chatName"></span>
       </div>
-      <button class="voice-toggle-btn" id="voiceToggle" aria-label="Toggle voice mode" title="Voice mode">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-          <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
-          <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
-        </svg>
-      </button>
       <button class="clear-chat-btn" id="clearChatBtn" aria-label="Clear conversation" title="Clear conversation">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
@@ -140,9 +133,16 @@
         <label class="settings-label">API Key</label>
         <input type="password" id="settingsApiKey" class="settings-input" placeholder="sk-ant-... or sk-..." autocomplete="off" spellcheck="false">
         <p class="settings-hint">Your key stays in browser memory. It's never stored on disk or logged.</p>
-        <label class="settings-label">ElevenLabs API Key (Voice)</label>
+        <div class="settings-divider"></div>
+
+        <label class="settings-label">ElevenLabs API Key</label>
         <input type="password" id="settingsElevenLabsKey" class="settings-input" placeholder="xi-..." autocomplete="off" spellcheck="false">
-        <p class="settings-hint">Optional. Enables voice responses from CEOs with cloned voices.</p>
+        <p class="settings-hint">Enables voice messages. Use the mic button to get voice replies. Get your key at elevenlabs.io</p>
+
+        <label class="settings-label">CEO Voices</label>
+        <div class="ceo-voice-list" id="ceoVoiceList"></div>
+        <p class="settings-hint">Each CEO has a unique ElevenLabs voice assigned.</p>
+
         <button class="settings-save-btn" id="settingsSave">Save</button>
       </div>
     </div>

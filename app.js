@@ -1,18 +1,18 @@
 (function () {
   'use strict';
 
-  const CGI = 'cgi-bin';
+  const API = '/api';
 
   // ===== CEO DATA =====
   const CEOS = [
-    { id: 'elon-musk', name: 'Elon Musk', title: 'CEO of Tesla & SpaceX', avatar: './assets/elon-musk.jpg', lastMsg: 'The future is electric ⚡', time: '' },
-    { id: 'tim-cook', name: 'Tim Cook', title: 'CEO of Apple', avatar: './assets/tim-cook.jpg', lastMsg: 'Good morning.', time: '' },
-    { id: 'sam-altman', name: 'Sam Altman', title: 'CEO of OpenAI', avatar: './assets/sam-altman.jpg', lastMsg: 'AGI is closer than you think', time: '' },
-    { id: 'satya-nadella', name: 'Satya Nadella', title: 'CEO of Microsoft', avatar: './assets/satya-nadella.jpg', lastMsg: 'Growth mindset is everything', time: '' },
-    { id: 'jensen-huang', name: 'Jensen Huang', title: 'CEO of NVIDIA', avatar: './assets/jensen-huang.jpg', lastMsg: 'Accelerated computing!', time: '' },
-    { id: 'mark-zuckerberg', name: 'Mark Zuckerberg', title: 'CEO of Meta', avatar: './assets/mark-zuckerberg.jpg', lastMsg: 'Move fast and build things', time: '' },
-    { id: 'sundar-pichai', name: 'Sundar Pichai', title: 'CEO of Google & Alphabet', avatar: './assets/sundar-pichai.jpg', lastMsg: 'Organizing the world\'s information', time: '' },
-    { id: 'jeff-bezos', name: 'Jeff Bezos', title: 'Founder of Amazon', avatar: './assets/jeff-bezos.jpg', lastMsg: 'It\'s always Day 1', time: '' }
+    { id: 'elon-musk', name: 'Elon Musk', title: 'CEO of Tesla & SpaceX', avatar: './assets/elon-musk.jpg', lastMsg: 'The future is electric \u26a1', time: '', voiceName: 'Josh' },
+    { id: 'tim-cook', name: 'Tim Cook', title: 'CEO of Apple', avatar: './assets/tim-cook.jpg', lastMsg: 'Good morning.', time: '', voiceName: 'Adam' },
+    { id: 'sam-altman', name: 'Sam Altman', title: 'CEO of OpenAI', avatar: './assets/sam-altman.jpg', lastMsg: 'AGI is closer than you think', time: '', voiceName: 'Antoni' },
+    { id: 'satya-nadella', name: 'Satya Nadella', title: 'CEO of Microsoft', avatar: './assets/satya-nadella.jpg', lastMsg: 'Growth mindset is everything', time: '', voiceName: 'Sam' },
+    { id: 'jensen-huang', name: 'Jensen Huang', title: 'CEO of NVIDIA', avatar: './assets/jensen-huang.jpg', lastMsg: 'Accelerated computing!', time: '', voiceName: 'Arnold' },
+    { id: 'mark-zuckerberg', name: 'Mark Zuckerberg', title: 'CEO of Meta', avatar: './assets/mark-zuckerberg.jpg', lastMsg: 'Move fast and build things', time: '', voiceName: 'James' },
+    { id: 'sundar-pichai', name: 'Sundar Pichai', title: 'CEO of Google & Alphabet', avatar: './assets/sundar-pichai.jpg', lastMsg: 'Organizing the world\'s information', time: '', voiceName: 'Patrick' },
+    { id: 'jeff-bezos', name: 'Jeff Bezos', title: 'Founder of Amazon', avatar: './assets/jeff-bezos.jpg', lastMsg: 'It\'s always Day 1', time: '', voiceName: 'Callum' }
   ];
 
   // ===== STATE =====
@@ -20,8 +20,10 @@
   let currentCeo = null;
   let conversations = {};
   let isLoading = false;
-  let apiKey = '';
-  let apiProvider = 'anthropic'; // or 'openai'
+  let apiKey = localStorage.getItem('bmc_api_key') || '';
+  let apiProvider = localStorage.getItem('bmc_api_provider') || 'anthropic';
+  let elevenLabsKey = localStorage.getItem('bmc_elevenlabs_key') || '';
+  let isRecording = false;
 
   // ===== DOM REFS =====
   const $ = (sel) => document.querySelector(sel);
@@ -52,6 +54,9 @@
   const settingsSave = $('#settingsSave');
   const settingsApiKey = $('#settingsApiKey');
   const settingsProvider = $('#settingsProvider');
+  const settingsElevenLabsKey = $('#settingsElevenLabsKey');
+  const micBtn = $('#micBtn');
+  const ceoVoiceList = $('#ceoVoiceList');
 
   // ===== USER ID =====
   function generateUserId() {
@@ -66,11 +71,15 @@
   function initUser() {
     const params = new URLSearchParams(window.location.search);
     const urlUserId = params.get('uid');
+    const savedUserId = localStorage.getItem('bmc_user_id');
     if (urlUserId) {
       userId = urlUserId;
+    } else if (savedUserId) {
+      userId = savedUserId;
     } else {
       userId = generateUserId();
     }
+    localStorage.setItem('bmc_user_id', userId);
     userIdDisplay.textContent = 'Your session: ' + userId;
   }
 
@@ -91,6 +100,18 @@
     updateThemeIcon();
   });
 
+  // ===== CEO VOICE LIST (in settings) =====
+  function renderCeoVoiceList() {
+    if (!ceoVoiceList) return;
+    ceoVoiceList.innerHTML = CEOS.map(ceo =>
+      `<div class="ceo-voice-item">
+        <img src="${ceo.avatar}" alt="${ceo.name}" class="ceo-voice-avatar">
+        <span class="ceo-voice-name">${ceo.name}</span>
+        <span class="ceo-voice-label">${ceo.voiceName}</span>
+      </div>`
+    ).join('');
+  }
+
   // ===== CONTACTS LIST =====
   function renderContacts(filter = '') {
     const filtered = filter
@@ -103,7 +124,11 @@
       let lastTime = '';
       if (conv && conv.length > 0) {
         const last = conv[conv.length - 1];
-        lastMsg = last.content.substring(0, 50) + (last.content.length > 50 ? '...' : '');
+        if (last.isVoice && !last.transcribed) {
+          lastMsg = '\ud83c\udfa4 Voice message';
+        } else {
+          lastMsg = last.content.substring(0, 50) + (last.content.length > 50 ? '...' : '');
+        }
         lastTime = last.time || '';
       }
 
@@ -156,6 +181,11 @@
   }
 
   function closeChat() {
+    // Stop any playing audio
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio = null;
+    }
     chatView.classList.remove('active');
     chatView.classList.add('hidden-right');
     contactsView.classList.remove('hidden-left');
@@ -194,15 +224,70 @@
         lastTimeGroup = msg.time;
       }
       const dir = msg.role === 'user' ? 'outgoing' : 'incoming';
-      html += `
-        <div class="message-row ${dir}" style="animation-delay:${Math.min(i * 30, 200)}ms">
-          <div class="message-bubble">${escapeHtml(msg.content)}</div>
-        </div>
-      `;
+
+      // Voice message from CEO: show audio bubble
+      if (msg.role === 'assistant' && msg.isVoice && msg.audioBase64) {
+        const transcribeBtn = msg.transcribed
+          ? ''
+          : `<button class="transcribe-btn" data-msg-index="${i}">Transcribe</button>`;
+        const transcriptHtml = msg.transcribed
+          ? `<div class="voice-transcript">${escapeHtml(msg.content)}</div>`
+          : '';
+        html += `
+          <div class="message-row ${dir}" style="animation-delay:${Math.min(i * 30, 200)}ms">
+            <div class="message-bubble voice-bubble">
+              <div class="voice-player" data-msg-index="${i}">
+                <button class="voice-play-btn" data-msg-index="${i}" aria-label="Play voice">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                </button>
+                <div class="voice-waveform">
+                  <span></span><span></span><span></span><span></span><span></span>
+                  <span></span><span></span><span></span><span></span><span></span>
+                  <span></span><span></span><span></span><span></span><span></span>
+                </div>
+                <span class="voice-duration" data-msg-index="${i}">0:00</span>
+              </div>
+              ${transcribeBtn}
+              ${transcriptHtml}
+            </div>
+          </div>
+        `;
+      } else {
+        // Normal text message
+        html += `
+          <div class="message-row ${dir}" style="animation-delay:${Math.min(i * 30, 200)}ms">
+            <div class="message-bubble">${escapeHtml(msg.content)}</div>
+          </div>
+        `;
+      }
     });
 
     messagesContainer.innerHTML = html;
     messagesContainer.appendChild(typingIndicator);
+
+    // Attach voice play button listeners
+    messagesContainer.querySelectorAll('.voice-play-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = parseInt(btn.dataset.msgIndex);
+        const msg = (conversations[currentCeo.id] || [])[idx];
+        if (msg && msg.audioBase64) playStoredAudio(msg.audioBase64, btn, idx);
+      });
+    });
+
+    // Attach transcribe button listeners
+    messagesContainer.querySelectorAll('.transcribe-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = parseInt(btn.dataset.msgIndex);
+        const conv = conversations[currentCeo.id] || [];
+        if (conv[idx]) {
+          conv[idx].transcribed = true;
+          renderMessages();
+        }
+      });
+    });
+
     scrollToBottom();
   }
 
@@ -212,13 +297,15 @@
     return div.innerHTML;
   }
 
-  function addMessage(role, content) {
+  function addMessage(role, content, opts = {}) {
     if (!currentCeo) return;
     if (!conversations[currentCeo.id]) conversations[currentCeo.id] = [];
     const time = formatTime(new Date());
-    conversations[currentCeo.id].push({ role, content, time });
+    const msg = { role, content, time, ...opts };
+    conversations[currentCeo.id].push(msg);
     renderMessages();
     renderContacts();
+    return msg;
   }
 
   function scrollToBottom() {
@@ -227,8 +314,159 @@
     });
   }
 
+  // ===== AUDIO PLAYBACK =====
+  let currentAudio = null;
+  let currentPlayBtn = null;
+  const PLAY_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+  const PAUSE_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
+
+  function resetPlayBtn(btn) {
+    if (btn) {
+      btn.innerHTML = PLAY_SVG;
+      btn.classList.remove('playing');
+    }
+  }
+
+  function playStoredAudio(audioBase64, btn, msgIndex) {
+    // If already playing this one, pause
+    if (currentAudio && currentPlayBtn === btn) {
+      currentAudio.pause();
+      currentAudio = null;
+      resetPlayBtn(btn);
+      currentPlayBtn = null;
+      return;
+    }
+
+    // Stop any other playing audio
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio = null;
+      if (currentPlayBtn) resetPlayBtn(currentPlayBtn);
+    }
+
+    btn.innerHTML = PAUSE_SVG;
+    btn.classList.add('playing');
+    currentPlayBtn = btn;
+
+    const audioBlob = new Blob(
+      [Uint8Array.from(atob(audioBase64), c => c.charCodeAt(0))],
+      { type: 'audio/mpeg' }
+    );
+    const audioUrl = URL.createObjectURL(audioBlob);
+    currentAudio = new Audio(audioUrl);
+
+    // Update duration display
+    const durationEl = messagesContainer.querySelector(`.voice-duration[data-msg-index="${msgIndex}"]`);
+    currentAudio.onloadedmetadata = () => {
+      if (durationEl && isFinite(currentAudio.duration)) {
+        const dur = Math.round(currentAudio.duration);
+        durationEl.textContent = `0:${dur < 10 ? '0' : ''}${dur}`;
+      }
+    };
+
+    // Animate waveform while playing
+    const waveform = btn.closest('.voice-player').querySelector('.voice-waveform');
+    if (waveform) waveform.classList.add('playing');
+
+    currentAudio.onended = () => {
+      currentAudio = null;
+      currentPlayBtn = null;
+      resetPlayBtn(btn);
+      if (waveform) waveform.classList.remove('playing');
+      URL.revokeObjectURL(audioUrl);
+    };
+
+    currentAudio.play();
+  }
+
+  // ===== TTS (fetch audio from ElevenLabs via API) =====
+  async function fetchTTS(text) {
+    if (!elevenLabsKey || !currentCeo) return null;
+    try {
+      const res = await fetch(`${API}/tts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text,
+          ceo_id: currentCeo.id,
+          elevenlabs_key: elevenLabsKey
+        })
+      });
+      const data = await res.json();
+      return data.audio || null;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  // ===== SPEECH RECOGNITION (Voice Input) =====
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  if (SpeechRecognition && micBtn) {
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    let finalTranscript = '';
+
+    recognition.onresult = (event) => {
+      let interim = '';
+      finalTranscript = '';
+      for (let i = 0; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript;
+        } else {
+          interim += event.results[i][0].transcript;
+        }
+      }
+      messageInput.value = finalTranscript || interim;
+      autoResize();
+      sendBtn.classList.toggle('visible', messageInput.value.trim().length > 0);
+    };
+
+    recognition.onend = () => {
+      isRecording = false;
+      micBtn.classList.remove('recording');
+      const textToSend = finalTranscript || messageInput.value.trim();
+      if (textToSend) {
+        messageInput.value = textToSend;
+        // Mic sends as VOICE message → get voice reply
+        sendMessage(true);
+      }
+      finalTranscript = '';
+    };
+
+    recognition.onerror = () => {
+      isRecording = false;
+      micBtn.classList.remove('recording');
+      finalTranscript = '';
+    };
+
+    micBtn.addEventListener('click', () => {
+      if (!currentCeo) return;
+      if (isRecording) {
+        recognition.stop();
+      } else {
+        if (!elevenLabsKey) {
+          showSettings();
+          return;
+        }
+        isRecording = true;
+        micBtn.classList.add('recording');
+        messageInput.value = '';
+        finalTranscript = '';
+        recognition.start();
+      }
+    });
+  } else if (micBtn) {
+    micBtn.style.display = 'none';
+  }
+
   // ===== SEND MESSAGE =====
-  async function sendMessage() {
+  // isVoice = true → expect voice reply (audio bubble)
+  // isVoice = false → expect text reply (text bubble)
+  async function sendMessage(isVoice = false) {
     const text = messageInput.value.trim();
     if (!text || !currentCeo || isLoading) return;
 
@@ -240,14 +478,20 @@
     messageInput.value = '';
     autoResize();
     sendBtn.classList.remove('visible');
-    addMessage('user', text);
+
+    // User message: show as mic icon if sent via voice
+    if (isVoice) {
+      addMessage('user', text, { sentViaMic: true });
+    } else {
+      addMessage('user', text);
+    }
     isLoading = true;
 
     typingIndicator.classList.add('active');
     scrollToBottom();
 
     try {
-      const res = await fetch(`${CGI}/chat.py/send`, {
+      const res = await fetch(`${API}/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -263,13 +507,40 @@
       typingIndicator.classList.remove('active');
 
       if (data.response) {
-        addMessage('assistant', data.response);
+        if (isVoice && elevenLabsKey) {
+          // Voice mode: fetch TTS audio, show as audio bubble
+          const audioBase64 = await fetchTTS(data.response);
+          if (audioBase64) {
+            const msg = addMessage('assistant', data.response, {
+              isVoice: true,
+              audioBase64: audioBase64,
+              transcribed: false
+            });
+            // Auto-play the voice response
+            setTimeout(() => {
+              const lastBtn = messagesContainer.querySelector('.voice-play-btn:last-of-type');
+              const conv = conversations[currentCeo.id] || [];
+              const idx = conv.length - 1;
+              if (lastBtn && idx >= 0) {
+                playStoredAudio(audioBase64, lastBtn, idx);
+              }
+            }, 100);
+          } else {
+            // TTS failed, fall back to text
+            addMessage('assistant', data.response);
+          }
+        } else {
+          // Text mode: normal text bubble
+          addMessage('assistant', data.response);
+        }
       } else if (data.error) {
-        addMessage('assistant', '⚠️ ' + data.error);
+        addMessage('assistant', '\u26a0\ufe0f ' + data.error);
+      } else {
+        addMessage('assistant', '\u26a0\ufe0f Unexpected response (HTTP ' + res.status + ')');
       }
     } catch (err) {
       typingIndicator.classList.remove('active');
-      addMessage('assistant', '⚠️ Connection error. Please try again.');
+      addMessage('assistant', '\u26a0\ufe0f Connection error: ' + err.message);
     }
 
     isLoading = false;
@@ -279,7 +550,7 @@
   async function loadHistory(ceoId) {
     if (conversations[ceoId] && conversations[ceoId].length > 0) return;
     try {
-      const res = await fetch(`${CGI}/chat.py/history?user_id=${userId}&ceo_id=${ceoId}`);
+      const res = await fetch(`${API}/history?user_id=${userId}&ceo_id=${ceoId}`);
       const data = await res.json();
       if (data.messages && data.messages.length > 0) {
         conversations[ceoId] = data.messages.map(m => ({
@@ -294,10 +565,11 @@
   clearChatBtn.addEventListener('click', async () => {
     if (!currentCeo) return;
     if (!confirm('Clear this conversation?')) return;
+    if (currentAudio) { currentAudio.pause(); currentAudio = null; }
     conversations[currentCeo.id] = [];
     renderMessages();
     try {
-      await fetch(`${CGI}/chat.py/clear`, {
+      await fetch(`${API}/clear`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: userId, ceo_id: currentCeo.id })
@@ -319,16 +591,18 @@
   messageInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      sendMessage();
+      sendMessage(false); // Keyboard = text reply
     }
   });
 
-  sendBtn.addEventListener('click', sendMessage);
+  sendBtn.addEventListener('click', () => sendMessage(false)); // Button = text reply
 
   // ===== SETTINGS MODAL =====
   function showSettings() {
     settingsApiKey.value = apiKey;
     settingsProvider.value = apiProvider;
+    if (settingsElevenLabsKey) settingsElevenLabsKey.value = elevenLabsKey;
+    renderCeoVoiceList();
     settingsModal.classList.add('active');
   }
 
@@ -346,7 +620,12 @@
   settingsSave.addEventListener('click', () => {
     apiKey = settingsApiKey.value.trim();
     apiProvider = settingsProvider.value;
+    if (settingsElevenLabsKey) elevenLabsKey = settingsElevenLabsKey.value.trim();
+    localStorage.setItem('bmc_api_key', apiKey);
+    localStorage.setItem('bmc_api_provider', apiProvider);
+    localStorage.setItem('bmc_elevenlabs_key', elevenLabsKey);
     hideSettings();
+    if (currentCeo) renderMessages();
   });
 
   // ===== ONBOARDING =====
@@ -366,6 +645,8 @@
 
     apiKey = key;
     apiProvider = provider;
+    localStorage.setItem('bmc_api_key', apiKey);
+    localStorage.setItem('bmc_api_provider', apiProvider);
 
     onboarding.classList.add('hidden');
     const url = new URL(window.location);
@@ -388,5 +669,13 @@
   // ===== INIT =====
   initUser();
   renderContacts();
+
+  // Skip onboarding if API key is already saved
+  if (apiKey) {
+    onboarding.classList.add('hidden');
+    const url = new URL(window.location);
+    url.searchParams.set('uid', userId);
+    window.history.replaceState({}, '', url);
+  }
 
 })();
