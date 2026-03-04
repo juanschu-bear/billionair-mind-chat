@@ -22,6 +22,8 @@
   let isLoading = false;
   let apiKey = localStorage.getItem('bmc_api_key') || '';
   let apiProvider = localStorage.getItem('bmc_api_provider') || 'anthropic';
+  let elevenLabsKey = localStorage.getItem('bmc_elevenlabs_key') || '';
+  let isRecording = false;
 
   // ===== DOM REFS =====
   const $ = (sel) => document.querySelector(sel);
@@ -52,6 +54,8 @@
   const settingsSave = $('#settingsSave');
   const settingsApiKey = $('#settingsApiKey');
   const settingsProvider = $('#settingsProvider');
+  const settingsElevenLabsKey = $('#settingsElevenLabsKey');
+  const micBtn = $('#micBtn');
 
   // ===== USER ID =====
   function generateUserId() {
@@ -66,11 +70,15 @@
   function initUser() {
     const params = new URLSearchParams(window.location.search);
     const urlUserId = params.get('uid');
+    const savedUserId = localStorage.getItem('bmc_user_id');
     if (urlUserId) {
       userId = urlUserId;
+    } else if (savedUserId) {
+      userId = savedUserId;
     } else {
       userId = generateUserId();
     }
+    localStorage.setItem('bmc_user_id', userId);
     userIdDisplay.textContent = 'Your session: ' + userId;
   }
 
@@ -194,15 +202,29 @@
         lastTimeGroup = msg.time;
       }
       const dir = msg.role === 'user' ? 'outgoing' : 'incoming';
+      const playBtn = (msg.role === 'assistant' && elevenLabsKey && !msg.content.startsWith('\u26a0\ufe0f'))
+        ? `<button class="voice-play-btn" data-msg-index="${i}" aria-label="Play voice"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>`
+        : '';
       html += `
         <div class="message-row ${dir}" style="animation-delay:${Math.min(i * 30, 200)}ms">
-          <div class="message-bubble">${escapeHtml(msg.content)}</div>
+          <div class="message-bubble">${escapeHtml(msg.content)}${playBtn}</div>
         </div>
       `;
     });
 
     messagesContainer.innerHTML = html;
     messagesContainer.appendChild(typingIndicator);
+
+    // Attach play button listeners
+    messagesContainer.querySelectorAll('.voice-play-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = parseInt(btn.dataset.msgIndex);
+        const msg = (conversations[currentCeo.id] || [])[idx];
+        if (msg) playTTS(msg.content, btn);
+      });
+    });
+
     scrollToBottom();
   }
 
@@ -225,6 +247,106 @@
     requestAnimationFrame(() => {
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
     });
+  }
+
+  // ===== TTS PLAYBACK =====
+  let currentAudio = null;
+
+  async function playTTS(text, btn) {
+    if (!elevenLabsKey || !currentCeo) return;
+
+    // If already playing, stop
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio = null;
+      document.querySelectorAll('.voice-play-btn.playing').forEach(b => b.classList.remove('playing'));
+      return;
+    }
+
+    btn.classList.add('playing');
+    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
+
+    try {
+      const res = await fetch(`${API}/tts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text,
+          ceo_id: currentCeo.id,
+          elevenlabs_key: elevenLabsKey
+        })
+      });
+
+      const data = await res.json();
+      if (data.audio) {
+        const audioBlob = new Blob(
+          [Uint8Array.from(atob(data.audio), c => c.charCodeAt(0))],
+          { type: 'audio/mpeg' }
+        );
+        const audioUrl = URL.createObjectURL(audioBlob);
+        currentAudio = new Audio(audioUrl);
+        currentAudio.onended = () => {
+          currentAudio = null;
+          btn.classList.remove('playing');
+          btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+          URL.revokeObjectURL(audioUrl);
+        };
+        currentAudio.play();
+      } else {
+        btn.classList.remove('playing');
+        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+      }
+    } catch (err) {
+      btn.classList.remove('playing');
+      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+    }
+  }
+
+  // ===== SPEECH RECOGNITION (Voice Input) =====
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  if (SpeechRecognition && micBtn) {
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    recognition.onresult = (event) => {
+      let transcript = '';
+      for (let i = 0; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      messageInput.value = transcript;
+      autoResize();
+      sendBtn.classList.toggle('visible', transcript.trim().length > 0);
+    };
+
+    recognition.onend = () => {
+      isRecording = false;
+      micBtn.classList.remove('recording');
+      // Auto-send if we have text
+      if (messageInput.value.trim()) {
+        sendMessage();
+      }
+    };
+
+    recognition.onerror = () => {
+      isRecording = false;
+      micBtn.classList.remove('recording');
+    };
+
+    micBtn.addEventListener('click', () => {
+      if (!currentCeo) return;
+      if (isRecording) {
+        recognition.stop();
+      } else {
+        isRecording = true;
+        micBtn.classList.add('recording');
+        recognition.start();
+      }
+    });
+  } else if (micBtn) {
+    micBtn.style.display = 'none';
   }
 
   // ===== SEND MESSAGE =====
@@ -331,6 +453,7 @@
   function showSettings() {
     settingsApiKey.value = apiKey;
     settingsProvider.value = apiProvider;
+    settingsElevenLabsKey.value = elevenLabsKey;
     settingsModal.classList.add('active');
   }
 
@@ -348,9 +471,12 @@
   settingsSave.addEventListener('click', () => {
     apiKey = settingsApiKey.value.trim();
     apiProvider = settingsProvider.value;
+    elevenLabsKey = settingsElevenLabsKey.value.trim();
     localStorage.setItem('bmc_api_key', apiKey);
     localStorage.setItem('bmc_api_provider', apiProvider);
+    localStorage.setItem('bmc_elevenlabs_key', elevenLabsKey);
     hideSettings();
+    if (currentCeo) renderMessages();
   });
 
   // ===== ONBOARDING =====
