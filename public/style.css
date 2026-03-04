@@ -830,59 +830,165 @@
   50% { transform: scale(1.15); }
 }
 
-/* ========== VOICE PLAY BUTTON ========== */
-.voice-play-btn {
-  display: inline-flex;
+/* ========== VOICE BUBBLE (WhatsApp-style) ========== */
+.voice-bubble {
+  padding: 10px 14px !important;
+  min-width: 200px;
+}
+
+.voice-player {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
+  gap: 10px;
+}
+
+.voice-play-btn {
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.1);
   color: inherit;
-  margin-left: 8px;
-  vertical-align: middle;
-  transition: all var(--transition-fast);
-  flex-shrink: 0;
-}
-
-.message-row.incoming .voice-play-btn {
-  background: rgba(0, 0, 0, 0.08);
-}
-
-[data-theme="dark"] .message-row.incoming .voice-play-btn {
-  background: rgba(255, 255, 255, 0.12);
-}
-
-.voice-play-btn:hover {
-  transform: scale(1.1);
-}
-
-.voice-play-btn.playing {
-  animation: micPulse 1.2s infinite ease-in-out;
-}
-
-/* ========== VOICE MODE TOGGLE ========== */
-.voice-toggle-btn {
-  width: 44px;
-  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-text-muted);
-  border-radius: 50%;
+  flex-shrink: 0;
   transition: all var(--transition-fast);
 }
 
-.voice-toggle-btn:hover {
+[data-theme="dark"] .voice-play-btn {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.voice-play-btn:hover {
+  transform: scale(1.08);
+}
+
+.voice-play-btn.playing {
+  background: rgba(0, 122, 255, 0.2);
+}
+
+.voice-waveform {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  height: 28px;
+}
+
+.voice-waveform span {
+  display: block;
+  width: 3px;
+  border-radius: 2px;
+  background: currentColor;
+  opacity: 0.4;
+  height: 8px;
+}
+
+.voice-waveform span:nth-child(1) { height: 6px; }
+.voice-waveform span:nth-child(2) { height: 12px; }
+.voice-waveform span:nth-child(3) { height: 18px; }
+.voice-waveform span:nth-child(4) { height: 10px; }
+.voice-waveform span:nth-child(5) { height: 22px; }
+.voice-waveform span:nth-child(6) { height: 14px; }
+.voice-waveform span:nth-child(7) { height: 8px; }
+.voice-waveform span:nth-child(8) { height: 20px; }
+.voice-waveform span:nth-child(9) { height: 12px; }
+.voice-waveform span:nth-child(10) { height: 16px; }
+.voice-waveform span:nth-child(11) { height: 24px; }
+.voice-waveform span:nth-child(12) { height: 10px; }
+.voice-waveform span:nth-child(13) { height: 18px; }
+.voice-waveform span:nth-child(14) { height: 8px; }
+.voice-waveform span:nth-child(15) { height: 14px; }
+
+.voice-waveform.playing span {
+  opacity: 0.8;
+  animation: waveAnimate 1s infinite ease-in-out;
+}
+
+.voice-waveform.playing span:nth-child(odd) { animation-delay: 0s; }
+.voice-waveform.playing span:nth-child(even) { animation-delay: 0.15s; }
+.voice-waveform.playing span:nth-child(3n) { animation-delay: 0.3s; }
+
+@keyframes waveAnimate {
+  0%, 100% { transform: scaleY(0.6); opacity: 0.5; }
+  50% { transform: scaleY(1.2); opacity: 1; }
+}
+
+.voice-duration {
+  font-size: 12px;
+  color: inherit;
+  opacity: 0.7;
+  flex-shrink: 0;
+  min-width: 28px;
+  text-align: right;
+}
+
+.transcribe-btn {
+  display: block;
+  margin-top: 8px;
+  padding: 4px 0;
+  font-size: 13px;
+  color: inherit;
+  opacity: 0.6;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: opacity var(--transition-fast);
+}
+
+.transcribe-btn:hover {
+  opacity: 1;
+}
+
+.voice-transcript {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(128, 128, 128, 0.2);
+  font-size: 14px;
+  line-height: 1.35;
+  opacity: 0.85;
+}
+
+/* ========== CEO VOICE LIST (Settings) ========== */
+.settings-divider {
+  height: 1px;
   background: var(--color-separator);
+  margin: 12px 0 4px;
 }
 
-.voice-toggle-btn.active {
-  color: var(--color-primary);
-  background: rgba(0, 122, 255, 0.1);
+.ceo-voice-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 4px 0;
 }
 
-[data-theme="dark"] .voice-toggle-btn.active {
-  background: rgba(10, 132, 255, 0.15);
+.ceo-voice-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--color-surface);
+}
+
+.ceo-voice-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.ceo-voice-name {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.ceo-voice-label {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--color-surface-2);
 }
