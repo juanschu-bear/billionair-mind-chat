@@ -1,0 +1,8 @@
+node_modules
+.git
+.vercel
+.env
+*.md
+LICENSE
+Dockerfile
+.dockerignore
