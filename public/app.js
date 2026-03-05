@@ -18,6 +18,10 @@
     { id: 'gary-vee', name: 'Gary Vee', title: 'CEO of VaynerMedia', avatar: './assets/gary-vee.jpg', lastMsg: 'Clouds and dirt baby \u2601\ufe0f', time: '', category: 'Business Icons' }
   ];
 
+  function isValidApiKey(key) {
+    return key.startsWith('sk-ant-') || (key.startsWith('sk-') && key.length >= 20);
+  }
+
   window.avatarFallback = function avatarFallback(name) {
     const initials = name.split(' ').map(n => n[0]).join('');
     return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="#128C7E"/><text x="50" y="55" text-anchor="middle" dominant-baseline="middle" fill="white" font-size="36" font-family="sans-serif">${initials}</text></svg>`)}`;
@@ -837,13 +841,14 @@
     const key = apiKeyInput.value.trim();
     const provider = providerSelect.value;
 
-    if (!key) {
+    if (!key || !isValidApiKey(key)) {
       apiKeyInput.style.borderColor = '#ff3b30';
-      apiKeyInput.setAttribute('placeholder', 'Please enter your API key');
+      apiKeyInput.value = '';
+      apiKeyInput.setAttribute('placeholder', key ? 'Invalid key format — use sk-ant-... or sk-...' : 'Please enter your API key');
       setTimeout(() => {
         apiKeyInput.style.borderColor = '';
         apiKeyInput.setAttribute('placeholder', 'sk-ant-... or sk-...');
-      }, 2000);
+      }, 3000);
       return;
     }
 
