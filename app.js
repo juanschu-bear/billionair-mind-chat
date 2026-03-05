@@ -208,7 +208,105 @@
     });
   }
 
-  searchInput.addEventListener('input', (e) => renderContacts(e.target.value));
+  // ===== GLOBAL SEARCH =====
+  let searchDebounce = null;
+  let searchResultsEl = null;
+
+  function getSearchResultsEl() {
+    if (!searchResultsEl) {
+      searchResultsEl = document.createElement('div');
+      searchResultsEl.className = 'search-results';
+      searchInput.parentElement.appendChild(searchResultsEl);
+    }
+    return searchResultsEl;
+  }
+
+  function hideSearchResults() {
+    const el = getSearchResultsEl();
+    el.classList.remove('active');
+    el.innerHTML = '';
+  }
+
+  function isCeoNameMatch(query) {
+    return CEOS.some(c => c.name.toLowerCase().includes(query.toLowerCase()));
+  }
+
+  async function performGlobalSearch(query) {
+    if (!userId || query.length < 2) {
+      hideSearchResults();
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API}/search?user_id=${encodeURIComponent(userId)}&q=${encodeURIComponent(query)}`);
+      const data = await res.json();
+
+      const el = getSearchResultsEl();
+
+      if (!data.results || data.results.length === 0) {
+        el.innerHTML = '<div class="search-no-results">No messages found</div>';
+        el.classList.add('active');
+        return;
+      }
+
+      const escapedQuery = query.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+      el.innerHTML = data.results.map(r => {
+        const snippetHtml = escapeHtml(r.snippet).replace(
+          new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'),
+          '<mark>$1</mark>'
+        );
+        return `<div class="search-result-item" data-ceo-id="${r.ceo_id}">
+          <div>
+            <div class="search-result-meta">
+              <span class="search-result-ceo">${escapeHtml(r.ceo_name)}</span>
+              <span class="search-result-role">${r.role === 'user' ? 'You' : r.ceo_name.split(' ')[0]}</span>
+            </div>
+            <div class="search-result-snippet">${snippetHtml}</div>
+          </div>
+        </div>`;
+      }).join('');
+
+      el.classList.add('active');
+
+      // Click handler: open that CEO's chat
+      el.querySelectorAll('.search-result-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const ceoId = item.dataset.ceoId;
+          searchInput.value = '';
+          hideSearchResults();
+          renderContacts();
+          openChat(ceoId);
+        });
+      });
+    } catch (err) {
+      // Silent fail for search
+    }
+  }
+
+  searchInput.addEventListener('input', (e) => {
+    const query = e.target.value.trim();
+
+    // Always filter CEO list
+    renderContacts(query);
+
+    // If query matches a CEO name, just filter (existing behavior)
+    if (!query || query.length < 2 || isCeoNameMatch(query)) {
+      hideSearchResults();
+      return;
+    }
+
+    // Otherwise, debounce a global message search
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(() => performGlobalSearch(query), 400);
+  });
+
+  // Close search results when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.search-bar')) {
+      hideSearchResults();
+    }
+  });
 
   // ===== CHAT NAVIGATION =====
   function openChat(ceoId) {
