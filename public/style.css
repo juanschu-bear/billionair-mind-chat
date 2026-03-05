@@ -143,8 +143,8 @@
 .contacts-header-top {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 8px 0;
+  justify-content: flex-end;
+  padding: 4px 0 0;
 }
 
 .contacts-header h1 {
@@ -227,16 +227,17 @@
 }
 
 .category-header {
-  padding: 10px 20px;
-  font-size: 14px;
+  padding: 8px 20px;
+  font-size: 13px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.8px;
-  color: var(--color-primary);
-  background: var(--color-surface-1);
+  color: var(--color-text-muted);
+  background: var(--color-surface);
   position: sticky;
   top: 0;
   z-index: 1;
+  border-bottom: 0.5px solid var(--color-separator);
 }
 
 .contact-avatar {
@@ -693,8 +694,23 @@
   color: var(--color-badge);
 }
 
-/* ========== THEME TOGGLE ========== */
-.theme-toggle {
+/* ========== THEME TOGGLE (in settings) ========== */
+.settings-theme-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px 16px;
+  background: var(--color-surface);
+  border: none;
+  border-radius: 10px;
+  color: var(--color-text);
+  font-size: 16px;
+  cursor: pointer;
+  margin-bottom: 16px;
+}
+
+.settings-theme-btn svg {
   color: var(--color-primary);
 }
 
