@@ -428,16 +428,29 @@
 .typing-indicator {
   display: none;
   align-self: flex-start;
-  padding: 12px 18px;
+  padding: 10px 16px;
   background: var(--color-bubble-incoming);
   border-radius: var(--radius-bubble) var(--radius-bubble) var(--radius-bubble) 4px;
-  max-width: 70px;
+  max-width: 220px;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .typing-indicator.active {
   display: flex;
+}
+
+.typing-dots {
+  display: flex;
   gap: 5px;
   align-items: center;
+}
+
+.typing-label {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  font-style: italic;
+  letter-spacing: 0.1px;
 }
 
 .typing-dot {
@@ -461,6 +474,51 @@
     transform: scale(1);
     opacity: 1;
   }
+}
+
+/* ========== MESSAGE STATUS (Crown Checkmarks) ========== */
+.msg-status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: flex-end;
+  margin-top: 4px;
+  opacity: 0;
+  animation: statusFadeIn 400ms ease forwards;
+  animation-delay: 200ms;
+}
+
+@keyframes statusFadeIn {
+  to { opacity: 1; }
+}
+
+.msg-status-icon {
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: -1px;
+}
+
+.msg-status-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.7;
+}
+
+.msg-status.sent .msg-status-icon {
+  color: rgba(255,255,255,0.5);
+}
+.msg-status.sent .msg-status-label {
+  color: rgba(255,255,255,0.5);
+}
+
+.msg-status.read .msg-status-icon {
+  color: #ffd700;
+  filter: drop-shadow(0 0 2px rgba(255, 215, 0, 0.4));
+}
+.msg-status.read .msg-status-label {
+  color: #ffd700;
 }
 
 /* ========== INPUT BAR ========== */
