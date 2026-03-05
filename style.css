@@ -621,11 +621,17 @@
   width: 80px;
   height: 80px;
   border-radius: 20px;
-  background: linear-gradient(135deg, #34c759, #30d158);
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 24px;
+}
+
+.onboarding-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .onboarding h2 {
