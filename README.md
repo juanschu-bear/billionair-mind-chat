@@ -2,25 +2,27 @@
   <img src="assets/bmc-icon-192.png" alt="Billionair Mind Chat" width="120">
 </p>
 
-<h1 align="center">Billionair Mind Chat</h1>
+<h1 align="center">Billionair Minds Chat</h1>
 
-An iMessage-style chat app that lets you have conversations with 8 of the world's most influential tech CEOs -- powered by AI (Claude Sonnet or GPT-4o) with optional voice messages via ElevenLabs.
+**Billionair Minds Chat** is a personal AI boardroom. A chat app that puts you in direct conversation with 11 of the world's most influential tech billionaires and business icons (Elon Musk, Tim Cook, Sam Altman, Jensen Huang, Mark Zuckerberg, Sundar Pichai, Jeff Bezos, Mark Cuban, Alex Hormozi, Gary Vee, and Satya Nadella). They speak back in their voice, remember your conversations, and run on the AI model you choose. The app is just the interface - the Minds are the product.
+
+If you want brutally honest, strategic business advice from the people shaping the future - without the months-long waitlist, the $50k speaking fee, or the ignored DM - this is it.
 
 ## Features
 
-- **8 Tech CEOs** with unique personality profiles: Elon Musk, Tim Cook, Sam Altman, Satya Nadella, Jensen Huang, Mark Zuckerberg, Sundar Pichai, Jeff Bezos
-- **Dual AI support** -- switch between Anthropic Claude and OpenAI GPT-4o in settings
-- **Voice messages** -- record voice messages with the mic button; CEOs reply with their own voice (ElevenLabs TTS)
-- **Voice library** -- load your ElevenLabs voices and assign any voice to each CEO
-- **Transcribe** -- optionally reveal the text of any voice message
-- **iOS-style design** -- message bubbles, typing indicator, view transitions, backdrop blur
-- **Dark mode** -- automatic via system preference or manual toggle
-- **Search** -- filter CEOs in real time
-- **Conversation memory** -- smart summaries track meaningful conversations across sessions; CEOs remember your projects, interests, and ongoing topics without you repeating yourself
-- **Global message search** -- search across all conversations to find any message from any CEO; results show highlighted snippets with direct links to the chat
-- **CEO nudge notifications** -- CEOs proactively check in on your open topics via push notifications; get a text from Mark Zuckerberg asking how your deployment went while you're working
-- **Persistent conversations** -- chat history stored in Supabase (PostgreSQL)
-- **No API key on disk** -- keys stay in browser memory only, sent per request
+- **11 Tech CEOs** with unique personality profiles: Elon Musk, Tim Cook, Sam Altman, Satya Nadella, Jensen Huang, Mark Zuckerberg, Sundar Pichai, Jeff Bezos, Mark Cuban, Alex Hormozi and Gary Vee
+- **Dual AI support** - switch between Anthropic Claude Sonnet and OpenAI GPT-4o in settings
+- **Voice messages** - record voice messages with the mic button; CEOs reply with your chosen voice (ElevenLabs TTS)
+- **Voice library** - load your ElevenLabs voices and assign any voice to each CEO
+- **Transcribe** - optionally reveal the text of any voice message
+- **iOS-style design** - message bubbles, typing indicator, view transitions, backdrop blur
+- **Dark mode** - automatic via system preference or manual toggle
+- **Search** - filter Tech Billionairs and Business Icons in real time
+- **Conversation memory** - smart summaries track meaningful conversations across sessions; CEOs remember your projects, interests, and ongoing topics without you repeating yourself
+- **Global message search** - search across all conversations to find any message from any CEO; results show highlighted snippets with direct links to the chat
+- **CEO nudge notifications** - CEOs proactively check in on your open topics via push notifications; get a text from Mark Zuckerberg asking how your deployment went while you're working
+- **Persistent conversations** - chat history stored in Supabase (PostgreSQL)
+- **No API key on disk** - keys stay in browser memory only, sent per request
 
 ## How It Works
 
