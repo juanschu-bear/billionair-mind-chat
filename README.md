@@ -2,7 +2,7 @@
   <img src="assets/bmc-icon-192.png" alt="Billionair Mind Chat" width="120">
 </p>
 
-<h1 align="center">Billionair Mind Chat</h1>
+<h1 align="center">Billionair Minds Chat</h1>
 
 An iMessage/WhatsApp-Style chat app that lets you have conversations with 11 of the world's most influential tech CEOs and Business Icons -- powered by AI (Claude Sonnet or GPT-4o) with optional customized voice messages via ElevenLabs.
 
