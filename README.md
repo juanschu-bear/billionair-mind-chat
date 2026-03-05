@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/assets/bmc-icon-192.png" alt="Billionair Mind Chat" width="120">
+  <img src="assets/bmc-icon-192.png" alt="Billionair Mind Chat" width="120">
 </p>
 
 <h1 align="center">Billionair Mind Chat</h1>
