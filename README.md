@@ -16,6 +16,8 @@ An iMessage-style chat app that lets you have conversations with 8 of the world'
 - **iOS-style design** -- message bubbles, typing indicator, view transitions, backdrop blur
 - **Dark mode** -- automatic via system preference or manual toggle
 - **Search** -- filter CEOs in real time
+- **Conversation memory** -- smart summaries track meaningful conversations across sessions; CEOs remember your projects, interests, and ongoing topics without you repeating yourself
+- **Global message search** -- search across all conversations to find any message from any CEO; results show highlighted snippets with direct links to the chat
 - **Persistent conversations** -- chat history stored in Supabase (PostgreSQL)
 - **No API key on disk** -- keys stay in browser memory only, sent per request
 
