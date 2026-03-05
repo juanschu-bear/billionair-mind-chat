@@ -4,18 +4,18 @@
 
 <h1 align="center">Billionair Mind Chat</h1>
 
-An iMessage-style chat app that lets you have conversations with 8 of the world's most influential tech CEOs -- powered by AI (Claude Sonnet or GPT-4o) with optional voice messages via ElevenLabs.
+An iMessage/WhatsApp-Style chat app that lets you have conversations with 11 of the world's most influential tech CEOs and Business Icons -- powered by AI (Claude Sonnet or GPT-4o) with optional customized voice messages via ElevenLabs.
 
 ## Features
 
-- **8 Tech CEOs** with unique personality profiles: Elon Musk, Tim Cook, Sam Altman, Satya Nadella, Jensen Huang, Mark Zuckerberg, Sundar Pichai, Jeff Bezos
-- **Dual AI support** -- switch between Anthropic Claude and OpenAI GPT-4o in settings
-- **Voice messages** -- record voice messages with the mic button; CEOs reply with their own voice (ElevenLabs TTS)
+- **11 Tech CEOs** with unique personality profiles: Elon Musk, Tim Cook, Sam Altman, Satya Nadella, Jensen Huang, Mark Zuckerberg, Sundar Pichai, Jeff Bezos, Mark Cuban, Alex Hormozi and Gary Vee
+- **Dual AI support** -- switch between Anthropic Claude Sonnet and OpenAI GPT-4o in settings
+- **Voice messages** -- record voice messages with the mic button; CEOs reply with your chosen voice (ElevenLabs TTS)
 - **Voice library** -- load your ElevenLabs voices and assign any voice to each CEO
 - **Transcribe** -- optionally reveal the text of any voice message
 - **iOS-style design** -- message bubbles, typing indicator, view transitions, backdrop blur
 - **Dark mode** -- automatic via system preference or manual toggle
-- **Search** -- filter CEOs in real time
+- **Search** -- filter Tech Billionairs and Business Icons in real time
 - **Persistent conversations** -- chat history stored in Supabase (PostgreSQL)
 - **No API key on disk** -- keys stay in browser memory only, sent per request
 
