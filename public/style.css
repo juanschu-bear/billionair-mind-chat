@@ -143,15 +143,22 @@
 .contacts-header-top {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  padding: 4px 0 0;
+  padding: 8px 0 4px;
+  gap: 10px;
 }
 
-.contacts-header h1 {
+.header-app-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.contacts-header-top h1 {
+  flex: 1;
   font-size: 34px;
   font-weight: 700;
   letter-spacing: -0.5px;
-  padding: 4px 0 8px;
 }
 
 .header-btn {
