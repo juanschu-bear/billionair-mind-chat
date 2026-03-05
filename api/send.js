@@ -25,40 +25,21 @@ module.exports = async function handler(req, res) {
     const ceo = CEO_PROFILES[ceo_id];
     const userHash = crypto.createHash('md5').update(user_id || 'anonymous').digest('hex').slice(0, 12);
 
-    // Load existing conversation from Supabase (try with summary fields, fallback without)
-    let row = null;
-    let summaryColumnsAvailable = true;
-
-    const { data: fullRow, error: fullError } = await supabase
+    // Load existing conversation from Supabase (include summary fields)
+    const { data: row, error: loadError } = await supabase
       .from('conversations')
       .select('messages, conversation_summary, summary_count')
       .eq('user_hash', userHash)
       .eq('ceo_id', ceo_id)
       .single();
 
-    if (fullError && fullError.message && fullError.message.includes('does not exist')) {
-      // Summary columns not available yet — fall back to basic query
-      summaryColumnsAvailable = false;
-      const { data: basicRow, error: basicError } = await supabase
-        .from('conversations')
-        .select('messages')
-        .eq('user_hash', userHash)
-        .eq('ceo_id', ceo_id)
-        .single();
-
-      if (basicError && basicError.code !== 'PGRST116') {
-        return res.status(500).json({ error: `Supabase load error: ${basicError.message}` });
-      }
-      row = basicRow;
-    } else if (fullError && fullError.code !== 'PGRST116') {
-      return res.status(500).json({ error: `Supabase load error: ${fullError.message}` });
-    } else {
-      row = fullRow;
+    if (loadError && loadError.code !== 'PGRST116') {
+      return res.status(500).json({ error: `Supabase load error: ${loadError.message}` });
     }
 
     let messages = row?.messages || [];
-    const existingSummary = summaryColumnsAvailable ? (row?.conversation_summary || null) : null;
-    const summaryCount = summaryColumnsAvailable ? (row?.summary_count || 0) : 0;
+    const existingSummary = row?.conversation_summary || null;
+    const summaryCount = row?.summary_count || 0;
 
     messages.push({ role: 'user', content: message });
 
@@ -113,20 +94,19 @@ module.exports = async function handler(req, res) {
     }
 
     // Upsert conversation to Supabase
-    const upsertData = {
-      user_hash: userHash,
-      ceo_id: ceo_id,
-      messages,
-      updated_at: new Date().toISOString()
-    };
-    if (summaryColumnsAvailable) {
-      upsertData.conversation_summary = newSummary;
-      upsertData.summary_count = newSummaryCount;
-    }
-
     const { error: saveError } = await supabase
       .from('conversations')
-      .upsert(upsertData, { onConflict: 'user_hash,ceo_id' });
+      .upsert(
+        {
+          user_hash: userHash,
+          ceo_id: ceo_id,
+          messages,
+          conversation_summary: newSummary,
+          summary_count: newSummaryCount,
+          updated_at: new Date().toISOString()
+        },
+        { onConflict: 'user_hash,ceo_id' }
+      );
 
     if (saveError) {
       return res.status(500).json({ error: `Supabase save error: ${saveError.message}` });
@@ -195,14 +175,12 @@ async function generateSummary(apiKey, provider, messages, existingSummary) {
 // --- USER PROFILE GENERATION ---
 async function generateUserProfile(apiKey, provider, userHash) {
   // Load all conversation summaries for this user
-  const { data: rows, error: profileLoadError } = await supabase
+  const { data: rows } = await supabase
     .from('conversations')
     .select('ceo_id, conversation_summary, summary_count')
     .eq('user_hash', userHash)
     .not('conversation_summary', 'is', null);
 
-  // If summary columns don't exist yet, skip profile generation
-  if (profileLoadError && profileLoadError.message && profileLoadError.message.includes('does not exist')) return;
   if (!rows || rows.length === 0) return;
 
   const allSummaries = rows.map(r => `[${r.ceo_id}]: ${r.conversation_summary}`).join('\n\n');
