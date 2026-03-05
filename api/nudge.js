@@ -40,13 +40,15 @@ module.exports = async function handler(req, res) {
 
     for (const sub of subs) {
       // 2. Find conversations with summaries for this user
-      const { data: convos } = await supabase
+      const { data: convos, error: convoError } = await supabase
         .from('conversations')
         .select('ceo_id, conversation_summary, updated_at')
         .eq('user_hash', sub.user_hash)
         .not('conversation_summary', 'is', null)
         .order('updated_at', { ascending: false });
 
+      // Skip if summary columns don't exist yet
+      if (convoError && convoError.message && convoError.message.includes('does not exist')) continue;
       if (!convos || convos.length === 0) continue;
 
       // 3. Check which conversations are "stale" (>24h since last message) but have substance
