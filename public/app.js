@@ -55,6 +55,7 @@
   const chatAvatar = $('#chatAvatar');
   const chatName = $('#chatName');
   const typingIndicator = $('#typingIndicator');
+  const typingLabel = $('#typingLabel');
   const searchInput = $('#searchInput');
   const themeToggle = $('#themeToggle');
   const clearChatBtn = $('#clearChatBtn');
@@ -295,6 +296,17 @@
     return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   }
 
+  // Crown checkmark for message status
+  function buildStatusHtml(msg, index, conv) {
+    // Check if there's an assistant reply after this user message
+    const hasReply = conv.slice(index + 1).some(m => m.role === 'assistant');
+    if (hasReply) {
+      return '<div class="msg-status read"><span class="msg-status-icon">\ud83d\udc51\u2713</span><span class="msg-status-label">Read</span></div>';
+    }
+    // Sent but not yet read
+    return '<div class="msg-status sent"><span class="msg-status-icon">\u2713</span><span class="msg-status-label">Sent</span></div>';
+  }
+
   function renderMessages() {
     if (!currentCeo) return;
     const conv = conversations[currentCeo.id] || [];
@@ -317,6 +329,9 @@
         lastTimeGroup = msg.time;
       }
       const dir = msg.role === 'user' ? 'outgoing' : 'incoming';
+
+      // Build status indicator for outgoing messages
+      const statusHtml = msg.role === 'user' ? buildStatusHtml(msg, i, conv) : '';
 
       // Voice message (both user and assistant): show audio bubble
       if (msg.isVoice && msg.audioBase64) {
@@ -342,6 +357,7 @@
               </div>
               ${transcribeBtn}
               ${transcriptHtml}
+              ${statusHtml}
             </div>
           </div>
         `;
@@ -349,7 +365,10 @@
         // Normal text message
         html += `
           <div class="message-row ${dir}" style="animation-delay:${Math.min(i * 30, 200)}ms">
-            <div class="message-bubble">${escapeHtml(msg.content)}</div>
+            <div class="message-bubble">
+              ${escapeHtml(msg.content)}
+              ${statusHtml}
+            </div>
           </div>
         `;
       }
@@ -406,6 +425,42 @@
     requestAnimationFrame(() => {
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
     });
+  }
+
+  // ===== NOTIFICATION SOUND (Web Audio API) =====
+  function playNotificationSound() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      // Two-tone chime like iMessage
+      const now = ctx.currentTime;
+      [880, 1174.66].forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.15, now + i * 0.12);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 0.3);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now + i * 0.12);
+        osc.stop(now + i * 0.12 + 0.3);
+      });
+      setTimeout(() => ctx.close(), 600);
+    } catch (e) { /* AudioContext not available */ }
+  }
+
+  // ===== TYPING LABEL =====
+  function showTyping() {
+    if (currentCeo) {
+      const firstName = currentCeo.name.split(' ')[0];
+      typingLabel.textContent = firstName + ' is writing...';
+    }
+    typingIndicator.classList.add('active');
+    scrollToBottom();
+  }
+
+  function hideTyping() {
+    typingIndicator.classList.remove('active');
   }
 
   // ===== AUDIO PLAYBACK =====
@@ -630,8 +685,7 @@
     });
 
     isLoading = true;
-    typingIndicator.classList.add('active');
-    scrollToBottom();
+    showTyping();
 
     try {
       // Send transcription to AI
@@ -648,9 +702,10 @@
       });
 
       const data = await res.json();
-      typingIndicator.classList.remove('active');
+      hideTyping();
 
       if (data.response) {
+        playNotificationSound();
         // Convert CEO response to voice
         const audioBase64 = await fetchTTS(data.response);
         if (audioBase64) {
@@ -679,7 +734,7 @@
         addMessage('assistant', '\u26a0\ufe0f Unexpected response (HTTP ' + res.status + ')');
       }
     } catch (err) {
-      typingIndicator.classList.remove('active');
+      hideTyping();
       addMessage('assistant', '\u26a0\ufe0f Connection error: ' + err.message);
     }
 
@@ -701,9 +756,7 @@
     sendBtn.classList.remove('visible');
     addMessage('user', text);
     isLoading = true;
-
-    typingIndicator.classList.add('active');
-    scrollToBottom();
+    showTyping();
 
     try {
       const res = await fetch(`${API}/send`, {
@@ -719,9 +772,10 @@
       });
 
       const data = await res.json();
-      typingIndicator.classList.remove('active');
+      hideTyping();
 
       if (data.response) {
+        playNotificationSound();
         addMessage('assistant', data.response);
       } else if (data.error) {
         addMessage('assistant', '\u26a0\ufe0f ' + data.error);
@@ -729,7 +783,7 @@
         addMessage('assistant', '\u26a0\ufe0f Unexpected response (HTTP ' + res.status + ')');
       }
     } catch (err) {
-      typingIndicator.classList.remove('active');
+      hideTyping();
       addMessage('assistant', '\u26a0\ufe0f Connection error: ' + err.message);
     }
 
