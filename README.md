@@ -18,6 +18,9 @@ If you want brutally honest, strategic business advice from the people shaping t
 - **iOS-style design** - message bubbles, typing indicator, view transitions, backdrop blur
 - **Dark mode** - automatic via system preference or manual toggle
 - **Search** - filter Tech Billionairs and Business Icons in real time
+- **Conversation memory** - smart summaries track meaningful conversations across sessions; CEOs remember your projects, interests, and ongoing topics without you repeating yourself
+- **Global message search** - search across all conversations to find any message from any CEO; results show highlighted snippets with direct links to the chat
+- **CEO nudge notifications** - CEOs proactively check in on your open topics via push notifications; get a text from Mark Zuckerberg asking how your deployment went while you're working
 - **Persistent conversations** - chat history stored in Supabase (PostgreSQL)
 - **No API key on disk** - keys stay in browser memory only, sent per request
 
@@ -86,6 +89,9 @@ billionair-mind-chat/
 2. Add these environment variables:
    - `SUPABASE_URL` -- your Supabase project URL
    - `SUPABASE_SERVICE_KEY` -- your Supabase service_role key
+   - `VAPID_PUBLIC_KEY` -- generate with `npx web-push generate-vapid-keys` (for push notifications)
+   - `VAPID_PRIVATE_KEY` -- from the same command above
+   - `CRON_SECRET` (optional) -- protects the `/api/nudge` cron endpoint
 3. Deploy
 
 ### 3. Local Development
@@ -115,6 +121,10 @@ docker run -p 3000:3000 billionair-mind-chat
 | `POST` | `/api/voices` | Fetch available voices from ElevenLabs |
 | `GET` | `/api/history?user_id=...&ceo_id=...` | Load conversation history |
 | `DELETE` | `/api/clear` | Delete a conversation |
+| `GET` | `/api/subscribe?vapid=1` | Get VAPID public key for push subscription |
+| `POST` | `/api/subscribe` | Register push notification subscription |
+| `DELETE` | `/api/subscribe` | Remove push notification subscription |
+| `GET` | `/api/nudge` | Cron-triggered: send CEO nudge notifications |
 
 ## Contributing
 

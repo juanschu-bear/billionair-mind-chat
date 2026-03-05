@@ -988,15 +988,138 @@
     });
   }
 
+  // ===== PUSH NOTIFICATIONS =====
+  const notifToggle = $('#notifToggle');
+  const notifToggleLabel = $('#notifToggleLabel');
+  const notifToggleIcon = $('#notifToggleIcon');
+  let pushSubscribed = localStorage.getItem('bmc_push_subscribed') === 'true';
+
+  function updateNotifToggle() {
+    if (!notifToggleLabel) return;
+    notifToggleLabel.textContent = pushSubscribed ? 'Reminders On' : 'Enable CEO Reminders';
+    if (notifToggleIcon) {
+      notifToggleIcon.innerHTML = pushSubscribed
+        ? '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>'
+        : '<path d="M13.73 21a2 2 0 0 1-3.46 0"/><path d="M18.63 13A17.89 17.89 0 0 1 18 8"/><path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14"/><line x1="1" y1="1" x2="23" y2="23"/>';
+    }
+  }
+
+  async function subscribePush() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      showToast('Push notifications not supported in this browser');
+      return;
+    }
+
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        showToast('Notification permission denied');
+        return;
+      }
+
+      const reg = await navigator.serviceWorker.ready;
+
+      // Fetch VAPID public key from server
+      const vapidRes = await fetch(`${API}/subscribe?vapid=1`);
+      const vapidData = await vapidRes.json();
+      if (!vapidData.vapid_public_key) {
+        showToast('Push not configured on server');
+        return;
+      }
+
+      const subscription = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidData.vapid_public_key)
+      });
+
+      // Send subscription to server
+      await fetch(`${API}/subscribe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, subscription: subscription.toJSON() })
+      });
+
+      pushSubscribed = true;
+      localStorage.setItem('bmc_push_subscribed', 'true');
+      updateNotifToggle();
+      showToast('CEO reminders activated');
+    } catch (err) {
+      showToast('Could not enable notifications');
+    }
+  }
+
+  async function unsubscribePush() {
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const subscription = await reg.pushManager.getSubscription();
+      if (subscription) await subscription.unsubscribe();
+
+      await fetch(`${API}/subscribe`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId })
+      });
+
+      pushSubscribed = false;
+      localStorage.setItem('bmc_push_subscribed', 'false');
+      updateNotifToggle();
+      showToast('CEO reminders disabled');
+    } catch (err) {
+      showToast('Could not disable notifications');
+    }
+  }
+
+  if (notifToggle) {
+    notifToggle.addEventListener('click', () => {
+      if (pushSubscribed) {
+        unsubscribePush();
+      } else {
+        subscribePush();
+      }
+    });
+  }
+
+  function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; i++) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  }
+
+  // Register Service Worker
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+
+    // Handle notification click → open chat
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      if (event.data?.type === 'OPEN_CHAT') {
+        const ceo = CEOS.find(c => c.id === event.data.ceoId);
+        if (ceo) openChat(ceo);
+      }
+    });
+  }
+
   // ===== INIT =====
   initUser();
   renderContacts();
+  updateNotifToggle();
 
   if (apiKey) {
     onboarding.classList.add('hidden');
     const url = new URL(window.location);
     url.searchParams.set('uid', userId);
     window.history.replaceState({}, '', url);
+  }
+
+  // Open chat from notification deep link
+  const openParam = new URLSearchParams(window.location.search).get('open');
+  if (openParam) {
+    const ceo = CEOS.find(c => c.id === openParam);
+    if (ceo) setTimeout(() => openChat(ceo), 300);
   }
 
 })();
