@@ -5,15 +5,23 @@
 
   // ===== CEO DATA =====
   const CEOS = [
-    { id: 'elon-musk', name: 'Elon Musk', title: 'CEO of Tesla & SpaceX', avatar: './assets/elon-musk.jpg', lastMsg: 'The future is electric \u26a1', time: '' },
-    { id: 'tim-cook', name: 'Tim Cook', title: 'CEO of Apple', avatar: './assets/tim-cook.jpg', lastMsg: 'Good morning.', time: '' },
-    { id: 'sam-altman', name: 'Sam Altman', title: 'CEO of OpenAI', avatar: './assets/sam-altman.jpg', lastMsg: 'AGI is closer than you think', time: '' },
-    { id: 'satya-nadella', name: 'Satya Nadella', title: 'CEO of Microsoft', avatar: './assets/satya-nadella.jpg', lastMsg: 'Growth mindset is everything', time: '' },
-    { id: 'jensen-huang', name: 'Jensen Huang', title: 'CEO of NVIDIA', avatar: './assets/jensen-huang.jpg', lastMsg: 'Accelerated computing!', time: '' },
-    { id: 'mark-zuckerberg', name: 'Mark Zuckerberg', title: 'CEO of Meta', avatar: './assets/mark-zuckerberg.jpg', lastMsg: 'Move fast and build things', time: '' },
-    { id: 'sundar-pichai', name: 'Sundar Pichai', title: 'CEO of Google & Alphabet', avatar: './assets/sundar-pichai.jpg', lastMsg: 'Organizing the world\'s information', time: '' },
-    { id: 'jeff-bezos', name: 'Jeff Bezos', title: 'Founder of Amazon', avatar: './assets/jeff-bezos.jpg', lastMsg: 'It\'s always Day 1', time: '' }
+    { id: 'elon-musk', name: 'Elon Musk', title: 'CEO of Tesla & SpaceX', avatar: './assets/elon-musk.jpg', lastMsg: 'The future is electric \u26a1', time: '', category: 'Tech Billionaires' },
+    { id: 'tim-cook', name: 'Tim Cook', title: 'CEO of Apple', avatar: './assets/tim-cook.jpg', lastMsg: 'Good morning.', time: '', category: 'Tech Billionaires' },
+    { id: 'sam-altman', name: 'Sam Altman', title: 'CEO of OpenAI', avatar: './assets/sam-altman.jpg', lastMsg: 'AGI is closer than you think', time: '', category: 'Tech Billionaires' },
+    { id: 'satya-nadella', name: 'Satya Nadella', title: 'CEO of Microsoft', avatar: './assets/satya-nadella.jpg', lastMsg: 'Growth mindset is everything', time: '', category: 'Tech Billionaires' },
+    { id: 'jensen-huang', name: 'Jensen Huang', title: 'CEO of NVIDIA', avatar: './assets/jensen-huang.jpg', lastMsg: 'Accelerated computing!', time: '', category: 'Tech Billionaires' },
+    { id: 'mark-zuckerberg', name: 'Mark Zuckerberg', title: 'CEO of Meta', avatar: './assets/mark-zuckerberg.jpg', lastMsg: 'Move fast and build things', time: '', category: 'Tech Billionaires' },
+    { id: 'sundar-pichai', name: 'Sundar Pichai', title: 'CEO of Google & Alphabet', avatar: './assets/sundar-pichai.jpg', lastMsg: 'Organizing the world\'s information', time: '', category: 'Tech Billionaires' },
+    { id: 'jeff-bezos', name: 'Jeff Bezos', title: 'Founder of Amazon', avatar: './assets/jeff-bezos.jpg', lastMsg: 'It\'s always Day 1', time: '', category: 'Tech Billionaires' },
+    { id: 'mark-cuban', name: 'Mark Cuban', title: 'Entrepreneur & Investor', avatar: './assets/mark-cuban.jpg', lastMsg: 'Every no gets you closer to yes', time: '', category: 'Tech Billionaires' },
+    { id: 'alex-hormozi', name: 'Alex Hormozi', title: 'Founder of Acquisition.com', avatar: './assets/alex-hormozi.jpg', lastMsg: 'Make offers so good people feel stupid saying no', time: '', category: 'Business Icons' },
+    { id: 'gary-vee', name: 'Gary Vee', title: 'CEO of VaynerMedia', avatar: './assets/gary-vee.jpg', lastMsg: 'Clouds and dirt baby \u2601\ufe0f', time: '', category: 'Business Icons' }
   ];
+
+  window.avatarFallback = function avatarFallback(name) {
+    const initials = name.split(' ').map(n => n[0]).join('');
+    return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="#128C7E"/><text x="50" y="55" text-anchor="middle" dominant-baseline="middle" fill="white" font-size="36" font-family="sans-serif">${initials}</text></svg>`)}`;
+  }
 
   // ===== STATE =====
   let userId = null;
@@ -174,33 +182,56 @@
       return lastB - lastA;
     });
 
-    contactsList.innerHTML = filtered.map(ceo => {
-      const conv = conversations[ceo.id];
-      let lastMsg = ceo.lastMsg;
-      let lastTime = '';
-      if (conv && conv.length > 0) {
-        const last = conv[conv.length - 1];
-        if (last.isVoice && !last.transcribed) {
-          lastMsg = '\ud83c\udfa4 Voice message';
-        } else {
-          lastMsg = last.content.substring(0, 50) + (last.content.length > 50 ? '...' : '');
-        }
-        lastTime = last.time || '';
-      }
+    // Group by category
+    const groups = {};
+    filtered.forEach(ceo => {
+      const cat = ceo.category || 'Other';
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(ceo);
+    });
 
-      return `
-        <div class="contact-item" data-ceo="${ceo.id}">
-          <img class="contact-avatar" src="${ceo.avatar}" alt="${ceo.name}" loading="lazy">
-          <div class="contact-info">
-            <div class="contact-name">${ceo.name}</div>
-            <div class="contact-subtitle">${lastMsg}</div>
+    // Maintain category order
+    const categoryOrder = ['Tech Billionaires', 'Business Icons'];
+    const sortedCategories = Object.keys(groups).sort((a, b) => {
+      const ia = categoryOrder.indexOf(a);
+      const ib = categoryOrder.indexOf(b);
+      return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+    });
+
+    const hasMultipleCategories = sortedCategories.length > 1 || (sortedCategories.length === 1 && sortedCategories[0] !== categoryOrder[0]);
+
+    contactsList.innerHTML = sortedCategories.map(cat => {
+      const ceoCards = groups[cat].map(ceo => {
+        const conv = conversations[ceo.id];
+        let lastMsg = ceo.lastMsg;
+        let lastTime = '';
+        if (conv && conv.length > 0) {
+          const last = conv[conv.length - 1];
+          if (last.isVoice && !last.transcribed) {
+            lastMsg = '\ud83c\udfa4 Voice message';
+          } else {
+            lastMsg = last.content.substring(0, 50) + (last.content.length > 50 ? '...' : '');
+          }
+          lastTime = last.time || '';
+        }
+
+        return `
+          <div class="contact-item" data-ceo="${ceo.id}">
+            <img class="contact-avatar" src="${ceo.avatar}" alt="${ceo.name}" loading="lazy" onerror="this.onerror=null;this.src=avatarFallback('${ceo.name}')">
+            <div class="contact-info">
+              <div class="contact-name">${ceo.name}</div>
+              <div class="contact-subtitle">${lastMsg}</div>
+            </div>
+            <div class="contact-meta">
+              <span class="contact-time">${lastTime}</span>
+              <svg class="contact-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
           </div>
-          <div class="contact-meta">
-            <span class="contact-time">${lastTime}</span>
-            <svg class="contact-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
-          </div>
-        </div>
-      `;
+        `;
+      }).join('');
+
+      const header = hasMultipleCategories ? `<div class="category-header">${cat}</div>` : '';
+      return header + ceoCards;
     }).join('');
 
     contactsList.querySelectorAll('.contact-item').forEach(item => {
@@ -222,8 +253,10 @@
 
     chatAvatar.src = currentCeo.avatar;
     chatAvatar.alt = currentCeo.name;
+    chatAvatar.onerror = function() { this.onerror = null; this.src = avatarFallback(currentCeo.name); };
     chatName.textContent = currentCeo.name;
     emptyChatAvatar.src = currentCeo.avatar;
+    emptyChatAvatar.onerror = function() { this.onerror = null; this.src = avatarFallback(currentCeo.name); };
     emptyChatName.textContent = currentCeo.name;
 
     contactsView.classList.remove('active');
