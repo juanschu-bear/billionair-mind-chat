@@ -95,7 +95,11 @@ async function callAnthropic(apiKey, systemPrompt, messages) {
 
     const result = await response.json();
     if (!response.ok) {
-      return `API error: ${result.error?.message || response.status}`;
+      const msg = result.error?.message || `Status ${response.status}`;
+      if (response.status === 401) {
+        return 'Invalid API key. Please check your Anthropic API key in settings.';
+      }
+      return `API error: ${msg}`;
     }
     return result.content[0].text;
   } catch (err) {
@@ -127,7 +131,10 @@ async function callOpenAI(apiKey, systemPrompt, messages) {
 
     const result = await response.json();
     if (!response.ok) {
-      return `API error: ${result.error?.message || response.status}`;
+      if (response.status === 401) {
+        return 'Invalid API key. Please check your OpenAI API key in settings.';
+      }
+      return `API error: ${result.error?.message || `Status ${response.status}`}`;
     }
     return result.choices[0].message.content;
   } catch (err) {
