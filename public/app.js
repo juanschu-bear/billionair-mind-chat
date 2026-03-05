@@ -32,6 +32,8 @@
   let currentCeo = null;
   let conversations = {};
   let isLoading = false;
+  let pendingRequests = {}; // ceoId -> true (background requests in flight)
+  let unreadChats = {};     // ceoId -> count
   let apiKey = localStorage.getItem('bmc_api_key') || '';
   let apiProvider = localStorage.getItem('bmc_api_provider') || 'anthropic';
   let elevenLabsKey = localStorage.getItem('bmc_elevenlabs_key') || '';
@@ -224,6 +226,11 @@
           lastTime = last.time || '';
         }
 
+        const unreadCount = unreadChats[ceo.id] || 0;
+        const unreadBadge = unreadCount > 0
+          ? `<span class="contact-unread">${unreadCount}</span>`
+          : '';
+
         return `
           <div class="contact-item" data-ceo="${ceo.id}">
             <img class="contact-avatar" src="${ceo.avatar}" alt="${ceo.name}" loading="lazy" onerror="this.onerror=null;this.src=avatarFallback('${ceo.name}')">
@@ -233,7 +240,7 @@
             </div>
             <div class="contact-meta">
               <span class="contact-time">${lastTime}</span>
-              <svg class="contact-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+              ${unreadBadge || `<svg class="contact-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>`}
             </div>
           </div>
         `;
@@ -268,6 +275,9 @@
     emptyChatAvatar.onerror = function() { this.onerror = null; this.src = avatarFallback(currentCeo.name); };
     emptyChatName.textContent = currentCeo.name;
 
+    // Clear unread for this chat
+    delete unreadChats[ceoId];
+
     contactsView.classList.remove('active');
     contactsView.classList.add('hidden-left');
     chatView.classList.remove('hidden-right');
@@ -280,10 +290,12 @@
 
   function closeChat() {
     if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+    hideTyping();
     chatView.classList.remove('active');
     chatView.classList.add('hidden-right');
     contactsView.classList.remove('hidden-left');
     contactsView.classList.add('active');
+    isLoading = false;
     currentCeo = null;
     renderContacts();
   }
@@ -362,15 +374,8 @@
           </div>
         `;
       } else {
-        // Normal text message
-        html += `
-          <div class="message-row ${dir}" style="animation-delay:${Math.min(i * 30, 200)}ms">
-            <div class="message-bubble">
-              ${escapeHtml(msg.content)}
-              ${statusHtml}
-            </div>
-          </div>
-        `;
+        // Normal text message — no whitespace between elements to avoid pre-wrap gaps
+        html += `<div class="message-row ${dir}" style="animation-delay:${Math.min(i * 30, 200)}ms"><div class="message-bubble">${statusHtml}<span class="msg-text">${escapeHtml(msg.content)}</span></div></div>`;
       }
     });
 
@@ -411,12 +416,19 @@
 
   function addMessage(role, content, opts = {}) {
     if (!currentCeo) return;
-    if (!conversations[currentCeo.id]) conversations[currentCeo.id] = [];
+    return addMessageTo(currentCeo.id, role, content, opts);
+  }
+
+  function addMessageTo(ceoId, role, content, opts = {}) {
+    if (!conversations[ceoId]) conversations[ceoId] = [];
     const now = new Date();
     const time = formatTime(now);
     const msg = { role, content, time, timestamp: now.getTime(), ...opts };
-    conversations[currentCeo.id].push(msg);
-    renderMessages();
+    conversations[ceoId].push(msg);
+    // Only re-render chat if we're viewing this conversation
+    if (currentCeo && currentCeo.id === ceoId) {
+      renderMessages();
+    }
     renderContacts();
     return msg;
   }
@@ -678,6 +690,8 @@
       return;
     }
 
+    const ceoId = currentCeo.id;
+
     // Show user's voice message as audio bubble
     addMessage('user', transcript, {
       isVoice: true,
@@ -685,6 +699,7 @@
     });
 
     isLoading = true;
+    pendingRequests[ceoId] = true;
     showTyping();
 
     try {
@@ -694,7 +709,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_id: userId,
-          ceo_id: currentCeo.id,
+          ceo_id: ceoId,
           message: transcript,
           api_key: apiKey,
           provider: apiProvider
@@ -702,43 +717,69 @@
       });
 
       const data = await res.json();
-      hideTyping();
+      const responseText = handleResponse(ceoId, data, res.status);
 
-      if (data.response) {
-        playNotificationSound();
-        // Convert CEO response to voice
-        const audioBase64 = await fetchTTS(data.response);
+      // Convert CEO response to voice if still viewing this chat
+      if (responseText && currentCeo && currentCeo.id === ceoId) {
+        const audioBase64 = await fetchTTS(responseText);
         if (audioBase64) {
-          addMessage('assistant', data.response, {
-            isVoice: true,
-            audioBase64: audioBase64,
-            transcribed: false
-          });
+          // Replace the last text message with voice version
+          const conv = conversations[ceoId] || [];
+          const lastMsg = conv[conv.length - 1];
+          if (lastMsg && lastMsg.role === 'assistant') {
+            lastMsg.isVoice = true;
+            lastMsg.audioBase64 = audioBase64;
+            lastMsg.transcribed = false;
+            renderMessages();
+          }
           // Auto-play the response
           setTimeout(() => {
             const allBtns = messagesContainer.querySelectorAll('.voice-play-btn');
             const lastBtn = allBtns[allBtns.length - 1];
-            const conv = conversations[currentCeo.id] || [];
             const idx = conv.length - 1;
             if (lastBtn && idx >= 0) {
               playStoredAudio(audioBase64, lastBtn, idx);
             }
           }, 100);
-        } else {
-          // TTS failed, show as text
-          addMessage('assistant', data.response);
         }
-      } else if (data.error) {
-        addMessage('assistant', '\u26a0\ufe0f ' + data.error);
-      } else {
-        addMessage('assistant', '\u26a0\ufe0f Unexpected response (HTTP ' + res.status + ')');
       }
     } catch (err) {
-      hideTyping();
-      addMessage('assistant', '\u26a0\ufe0f Connection error: ' + err.message);
+      const isViewing = currentCeo && currentCeo.id === ceoId;
+      if (isViewing) hideTyping();
+      addMessageTo(ceoId, 'assistant', '\u26a0\ufe0f Connection error: ' + err.message);
+      if (isViewing) isLoading = false;
+      delete pendingRequests[ceoId];
+    }
+  }
+
+  // ===== HANDLE RESPONSE (works even if user left the chat) =====
+  function handleResponse(ceoId, data, status) {
+    const isViewing = currentCeo && currentCeo.id === ceoId;
+    if (isViewing) hideTyping();
+
+    let responseText = null;
+    if (data && data.response) {
+      responseText = data.response;
+      addMessageTo(ceoId, 'assistant', responseText);
+    } else if (data && data.error) {
+      addMessageTo(ceoId, 'assistant', '\u26a0\ufe0f ' + data.error);
+    } else {
+      addMessageTo(ceoId, 'assistant', '\u26a0\ufe0f Unexpected response (HTTP ' + status + ')');
     }
 
-    isLoading = false;
+    // Notification: sound + unread badge if not viewing this chat
+    if (data && data.response) {
+      playNotificationSound();
+      if (!isViewing) {
+        unreadChats[ceoId] = (unreadChats[ceoId] || 0) + 1;
+        renderContacts();
+      }
+    }
+
+    if (isViewing) isLoading = false;
+    delete pendingRequests[ceoId];
+
+    return responseText;
   }
 
   // ===== SEND TEXT MESSAGE =====
@@ -751,11 +792,15 @@
       return;
     }
 
+    // Capture ceo info before any async work
+    const ceoId = currentCeo.id;
+
     messageInput.value = '';
     autoResize();
     sendBtn.classList.remove('visible');
     addMessage('user', text);
     isLoading = true;
+    pendingRequests[ceoId] = true;
     showTyping();
 
     try {
@@ -764,7 +809,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_id: userId,
-          ceo_id: currentCeo.id,
+          ceo_id: ceoId,
           message: text,
           api_key: apiKey,
           provider: apiProvider
@@ -772,22 +817,14 @@
       });
 
       const data = await res.json();
-      hideTyping();
-
-      if (data.response) {
-        playNotificationSound();
-        addMessage('assistant', data.response);
-      } else if (data.error) {
-        addMessage('assistant', '\u26a0\ufe0f ' + data.error);
-      } else {
-        addMessage('assistant', '\u26a0\ufe0f Unexpected response (HTTP ' + res.status + ')');
-      }
+      handleResponse(ceoId, data, res.status);
     } catch (err) {
-      hideTyping();
-      addMessage('assistant', '\u26a0\ufe0f Connection error: ' + err.message);
+      const isViewing = currentCeo && currentCeo.id === ceoId;
+      if (isViewing) hideTyping();
+      addMessageTo(ceoId, 'assistant', '\u26a0\ufe0f Connection error: ' + err.message);
+      if (isViewing) isLoading = false;
+      delete pendingRequests[ceoId];
     }
-
-    isLoading = false;
   }
 
   // ===== LOAD HISTORY =====
@@ -930,6 +967,24 @@
       } else if (val.startsWith('sk-') && !val.startsWith('sk-ant-')) {
         providerSelect.value = 'openai';
       }
+    });
+  }
+
+  // ===== TOAST =====
+  const toast = $('#toast');
+  let toastTimeout = null;
+  function showToast(message, duration = 2500) {
+    if (toastTimeout) clearTimeout(toastTimeout);
+    toast.textContent = message;
+    toast.classList.add('visible');
+    toastTimeout = setTimeout(() => toast.classList.remove('visible'), duration);
+  }
+
+  // ===== NEW GROUP =====
+  const newGroupBtn = $('#newGroupBtn');
+  if (newGroupBtn) {
+    newGroupBtn.addEventListener('click', () => {
+      showToast('Group Chats coming in V2 \ud83d\udc51');
     });
   }
 
